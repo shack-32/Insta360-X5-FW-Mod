@@ -1,0 +1,28 @@
+#!/bin/sh
+# ==============================================================================
+# Insta360 X5 instaAIP Hijack Hook
+# Executed by /etc/init.d/S99bootdone at Line 43
+# ==============================================================================
+
+LOGFILE="/tmp/SD0/bootup.log"
+
+echo "========================================" >> "$LOGFILE"
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] [instaAIP hijack] S99bootdone hijack hook triggered!" >> "$LOGFILE"
+
+# 1. Apply bind mounts over both camera_params.json paths BEFORE instaAIP reads them
+mount --bind /tmp/SD0/camera_params.json /usr/local/share/script/camera_params.json
+mount --bind /tmp/SD0/camera_params.json /pref/camera_params.json
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] [instaAIP hijack] camera_params.json bind-mounted to /usr/local/share/script/ and /pref/" >> "$LOGFILE"
+
+# 2. Apply bind mounts over camera_params.json.zip if present
+if [ -f /tmp/SD0/camera_params.json.zip ]; then
+    mount --bind /tmp/SD0/camera_params.json.zip /usr/local/share/script/camera_params.json.zip
+    mount --bind /tmp/SD0/camera_params.json.zip /pref/camera_params.json.zip
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] [instaAIP hijack] camera_params.json.zip bind-mounted" >> "$LOGFILE"
+fi
+
+touch /tmp/instaAIP_hijacked
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] [instaAIP hijack] Executing /usr/bin/instaAIP with patched parameters..." >> "$LOGFILE"
+
+# 3. Exec real binary
+exec /usr/bin/instaAIP "$@"

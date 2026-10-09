@@ -6386,12 +6386,30 @@
                     "default": [
                         "false"
                     ],
-                    "false|7680_3840_24|false": [],
-                    "false|7680_3840_24|true": [],
-                    "false|7680_3840_25|false": [],
-                    "false|7680_3840_25|true": [],
-                    "false|7680_3840_30|false": [],
-                    "false|7680_3840_30|true": [],
+                    "false|7680_3840_24|false": [
+                        "true",
+                        "false"
+                    ],
+                    "false|7680_3840_24|true": [
+                        "true",
+                        "false"
+                    ],
+                    "false|7680_3840_25|false": [
+                        "true",
+                        "false"
+                    ],
+                    "false|7680_3840_25|true": [
+                        "true",
+                        "false"
+                    ],
+                    "false|7680_3840_30|false": [
+                        "true",
+                        "false"
+                    ],
+                    "false|7680_3840_30|true": [
+                        "true",
+                        "false"
+                    ],
                     "true|3840_1920_24|false": [
                         "true",
                         "false"
@@ -6420,17 +6438,26 @@
                         "true",
                         "false"
                     ],
-                    "true|5760_2880_24|true": [],
+                    "true|5760_2880_24|true": [
+                        "true",
+                        "false"
+                    ],
                     "true|5760_2880_25|false": [
                         "true",
                         "false"
                     ],
-                    "true|5760_2880_25|true": [],
+                    "true|5760_2880_25|true": [
+                        "true",
+                        "false"
+                    ],
                     "true|5760_2880_30|false": [
                         "true",
                         "false"
                     ],
-                    "true|5760_2880_30|true": [],
+                    "true|5760_2880_30|true": [
+                        "true",
+                        "false"
+                    ],
                     "true|5760_2880_48|false": [
                         "true",
                         "false"

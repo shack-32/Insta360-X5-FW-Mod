@@ -20,7 +20,6 @@ log_msg "Insta360 X5 test harness starting..."
 # ------------------------------------------------------------------------------
 # 1. Load Optional Config Overrides
 # ------------------------------------------------------------------------------
-# Default toggles:
 ENABLE_ADB=1
 ENABLE_USB_SERIAL=0
 ENABLE_CUSTOM_PARAMS=1
@@ -36,21 +35,26 @@ fi
 # ------------------------------------------------------------------------------
 if [ "$ENABLE_CUSTOM_PARAMS" -eq 1 ]; then
     if [ -f "/tmp/SD0/camera_params.json" ]; then
-        log_msg "Applying custom camera_params.json via bind-mount..."
+        log_msg "Verifying camera_params.json bind-mounts..."
         
-        # Bind-mount over the primary script location
-        if [ -f "/usr/local/share/script/camera_params.json" ]; then
-            mount --bind /tmp/SD0/camera_params.json /usr/local/share/script/camera_params.json
-            log_msg "Bound over /usr/local/share/script/camera_params.json (exit: $?)"
+        mount --bind /tmp/SD0/camera_params.json /usr/local/share/script/camera_params.json 2>/dev/null
+        mount --bind /tmp/SD0/camera_params.json /pref/camera_params.json 2>/dev/null
+        
+        if [ -f "/tmp/SD0/camera_params.json.zip" ]; then
+            mount --bind /tmp/SD0/camera_params.json.zip /usr/local/share/script/camera_params.json.zip 2>/dev/null
+            mount --bind /tmp/SD0/camera_params.json.zip /pref/camera_params.json.zip 2>/dev/null
         fi
         
-        # Bind-mount over the persistent preferences location if present
-        if [ -f "/pref/camera_params.json" ]; then
-            mount --bind /tmp/SD0/camera_params.json /pref/camera_params.json
-            log_msg "Bound over /pref/camera_params.json (exit: $?)"
+        # Verify if instaAIP was started before mounts
+        if [ ! -f "/tmp/instaAIP_hijacked" ]; then
+            log_msg "instaAIP was started prior to mounts! Reloading daemon..."
+            killall -9 instaAIP 2>/dev/null
+            sleep 1
+            /usr/bin/instaAIP &
+            log_msg "instaAIP reloaded with custom parameters (PID: $!)"
+        else
+            log_msg "instaAIP was cleanly intercepted via hijack hook."
         fi
-    else
-        log_msg "Custom camera_params.json not found on SD card. Skipping bind-mount."
     fi
 fi
 
