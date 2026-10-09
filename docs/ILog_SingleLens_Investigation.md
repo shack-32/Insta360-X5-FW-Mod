@@ -75,7 +75,70 @@ The whole-firmware scan found:
 These are inside the **BOOTSTRAP partition** (`0x000005b0 – 0x013a3cd7`), i.e. the
 Ambarella RTOS image / compiled protobuf descriptors — *not* the Linux rootfs.
 
-## 3. Hypotheses (ranked)
+## 3. Session 2 findings (live camera + consumer hunt)
+
+### 3.1 Touchscreen tests performed by the operator
+
+| Test | Result |
+| :--- | :--- |
+| 360 Video, **HDR OFF** | **I-Log not available** (still gated). Our `Sphere06C` "HDR decouple" patch had **no effect** on the touchscreen. |
+| 360 Video, HDR ON | I-Log available (stock behaviour). |
+| Single Lens colour/filter menu | **Standard, Vivid, Flat, NC, CC** — no I-Log entry. |
+| USB "Control with Android" on a PC | Not supported. |
+
+### 3.2 The actual consumer of `camera_params.json` is Insta360 *software*, not the camera
+
+The rule keys are **absent from every on-device binary** (Linux rootfs *and* the
+firmware/RTOS partitions), in ASCII and UTF-16, compressed or not:
+
+* `i_log_switch`, `support_attrs`, `record_resolution` → only inside `camera_params.json`.
+* `depend_on` → only `camera_params.json` + `common_camera_setting_proto.json`.
+
+They **are** present in the Insta360 Studio desktop software:
+
+```
+Insta360 Studio_stock.exe / studio_worker_stock.dll
+  filter_mode, color_mode, COLOR_MODE_ILOG, COLOR_MODE_STANDARD, COLOR_MODE_DOLBY,
+  "X5_I-Log_To_Rec.709_V1.0.cube", "AcePro2_I-Log_To_Rec.709_V1.0.cube" ...
+```
+
+Combined with the fact that `instaAIP` merely **stores, copies and serves** the file
+(`/pref/camera_params.json` via the `/CONF` HTTP route) and hashes it for a Bluetooth
+`conf_version`, the architecture is now clear:
+
+> `camera_params.json` is a **remote UI/capability manifest for the Insta360 app/software**.
+> The camera owns and serves it; it does **not** interpret the rules.
+
+The **physical touchscreen menu is compiled into the RTOS** (the `i_log`, `SI_LOG`,
+`LOG`, `VIVID` enum values live in the Ambarella RTOS protobuf descriptors in the
+BOOTSTRAP partition, alongside the compiled `Webcam`/`Reverse`/`Android` USB-mode strings).
+
+### 3.3 The I-Log pipeline data already exists for the same sensor
+
+Part 2 ROMFS (ISP tuning) contains per-sensor log colour-correction sets:
+
+```
+VideoCc0_IMX06C_LOG … VideoCc4_IMX06C_LOG
+StillCc0_IMX06C_LOG … StillCc4_IMX06C_LOG
+```
+
+`IMX06C` is the single OV50H sensor profile used by **both** 360 and Single Lens, so the
+I-Log rendering data is not sphere-specific. The gate is the RTOS UI/control logic, not
+missing ISP data.
+
+### 3.4 Conclusion
+
+* The SD/JSON approach **cannot** add I-Log to the camera's own touchscreen. There is no
+  longer any plausible on-device consumer of the patched keys.
+* Changing the touchscreen menu requires modifying the RTOS image (**requires flashing** —
+  explicitly out of scope for this project).
+* Two safe paths remain:
+  1. **Insta360 app** (the actual consumer of `camera_params.json`): with the patched SD
+     card the app *should* offer I-Log in Single Lens capture.
+  2. **Runtime option injection** over the camera's OSC/HTTP or UCD/IPC interface
+     (RAM only) if the RTOS accepts an I-Log setting in Single Lens.
+
+## 4. Hypotheses (ranked)
 
 | # | Hypothesis | How to confirm |
 | :- | :--- | :--- |
@@ -83,7 +146,7 @@ Ambarella RTOS image / compiled protobuf descriptors — *not* the Linux rootfs.
 | **H2** | The JSON **is** consumed on-camera, but by the RTOS via a precomputed/shared structure populated **before** our bind-mount (RTOS boots first). | Check whether `/pref/camera_params.json` content differs from `/usr/local/share/script/...`; inspect RTOS logs; try a late `instaAIP` restart / option re-push. |
 | **H3** | I-Log is **pipeline-gated** for single lens (ISP/encoder only wires 10-bit log for sphere+HDR). Even if exposed, the option would be rejected/ignored. | `camera.setOptions` with the I-Log option in single lens and watch for errors; verify recorded file transfer characteristics. |
 
-## 4. Instrumentation added this session
+## 5. Instrumentation added this session
 
 - `sdcard_payload/diag.sh` — deep diagnostic collector, safe to run manually via
   `sh /tmp/SD0/diag.sh` or automatically from `custom.sh`. Captures:
@@ -95,7 +158,7 @@ Ambarella RTOS image / compiled protobuf descriptors — *not* the Linux rootfs.
   - byte-exact copies of the live `/usr/local/share/script` and `/pref` JSONs
 - `sdcard_payload/custom.sh` now invokes `diag.sh` on every boot.
 
-## 5. Next actions (requires live camera / ADB)
+## 6. Next actions
 
 1. `adb devices` → `adb shell`.
 2. `md5sum` all live JSON paths; confirm the patched MD5 is what the daemon sees.
