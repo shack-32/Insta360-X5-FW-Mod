@@ -215,8 +215,35 @@ factory mode (IMU cal, ageing, uploads). It is not a documented way to unlock I-
 ### 7.7 Available safe levers right now
 * RAM-only root shell over Wi-Fi (`tools/cam_shell.py`).
 * Authorized HTTP access from the PC by holding port 6666 (`tools/probe_camera.ps1`).
-* `amba_camctrl` runtime ISP knobs: `img set_scene`, `set_de`, `set_sharpness`,
-  `set_colortemp`, `set_evbias` (RAM only) — can tune Single Lens look but not true I-Log.
+
+### 7.8 CORRECTION: `amba_camctrl` does NOT work on this firmware
+The earlier docs (Option C) proposed `amba_camctrl enc set_bitrate` / `img set_*` for runtime
+tuning. **Tested on hardware and it fails:**
+```
+$ /usr/bin/amba_camctrl enc set_bitrate 200000000
+can not find svc for program 268435712! Client needs to bind again next time!
+ambaipc_clnt_call Can not find svc for program id 268435712.
+exit=255
+```
+`268435712 = 0x10000100` is the Ambarella camctrl RTOS service. The string `camctrl` exists
+only in the Linux rootfs — **not in the RTOS image** — so this product's RTOS never registers
+it. Insta360 replaced it with their own RPMsg/UCD protocol. Therefore the runtime
+encoder/ISP knob path is **not available**; bitrate, HDR, colour and NR are all RTOS-owned.
+
+### 7.9 Which tweaks are actually viable (three tiers)
+| Tier | Owner | Examples | Non-flash viable? |
+| :--- | :--- | :--- | :--- |
+| **A** | Linux daemons/scripts | Wi-Fi region/channel/Tx power, adb/serial, network, file/SD features, boot harness | **Yes** — RAM-only, already working |
+| **B** | App value-lists from `camera_params.json` | bitrate tiers / value pickers (if the app uses our patched values and refreshes) | **Maybe** — needs a cache/conf_version test |
+| **C** | RTOS firmware | I-Log availability, HDR gating, colour profiles, resolution/mode menus, NR/ISP tuning | **No** — needs UCD injection or flashing |
+
+### 7.10 Flashing risk / recovery
+The firmware partitions are signed/encrypted (RSA-signed thermal XMLs, `cmdctr.cipher.sh`).
+Insta360's recovery path is normally "official firmware on SD + button combo at power-on",
+which works **only if the bootloader/recovery chain is intact**. Corrupting the
+BOOTSTRAP/bootloader or failing a secure-boot check can leave the device needing vendor/JTAG
+recovery. Flashing is therefore not recommended for this project.
+
 
 
 1. `adb devices` → `adb shell`.
