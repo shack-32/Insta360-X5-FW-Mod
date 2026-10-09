@@ -160,6 +160,65 @@ missing ISP data.
 
 ## 6. Next actions
 
+## 7. Session 3 findings (live root shell)
+
+### 7.1 RAM-only root shell established
+The SD payload now starts busybox `telnetd -l /bin/sh -p 2323` from `bootup.sh`
+(`ENABLE_TELNETD=1`). Confirmed root over the camera's WPA2 AP (`uid=0`). No NAND writes;
+reboot removes it. Client: `tools/cam_shell.py`.
+
+### 7.2 The HTTP auth is IP/socket based — and can be satisfied from the PC
+The proprietary endpoints (`/CONF`, `/RICONF`, `/MISC`, `/algorithm`, `/LOG`) return 401
+unless the request comes from the app. Key strings:
+```
+[HttpServer] check: req_ip[%s] allow_osc[%d] osc_dl[%d] usb_state[0x%02X] app_socket[%d]
+[HttpServer] authorized: online app ip[%s].
+[HttpServer] unauthorized: osc not granted ... app_online_ip[%s] req_ip[%s]
+```
+**Simply opening a TCP connection to the camera's port 6666 from the PC registers the PC
+as the "online app"** and makes `/CONF` return 200. (See `tools/probe_camera.ps1`.)
+
+### 7.3 `/CONF` == `camera_params.json`; OSC only exposes standard options
+* `/CONF` returned exactly 231669 bytes = our patched `camera_params.json`.
+* `camera.getOptions` accepts only standard OSC names (`captureMode`, `exposureProgram`,
+  `iso`, `shutterSpeed`, `whiteBalance`, `exposureCompensation`, `fileDelay`, `fileFormat`,
+  `exposureDelay`). Insta360 names (`colorMode`, `iLogSwitch`, `i_log`, `i_log_switch`,
+  `color_mode`, `filter_mode`) return `invalidParameterName`.
+* `camera.setOptions` silently returns `state:"done"` for **any** option (no validation), so
+  it cannot be used to confirm whether I-Log was applied.
+
+### 7.4 The app controls capture over **Bluetooth**, not HTTP/OSC
+* Listening TCP ports: `80` (HTTP), `5555` (adbd), `6666` (keepalive channel), `12345`
+  (instaAlg debug), `11009` (camctrlserver), `53` (dnsmasq), `111` (rpcbind).
+* `app_dg` = *Bluetooth Data Gateway* (SPP/BLE data), `app_manager` = BT message manager,
+  `app_hogp` = BLE GATT. None contain any colour/I-Log string.
+* The settings path is therefore: **App → BLE/SPP (`app_dg`) → instaAIP (`ins_proto_dispatcher`,
+  ~193 handlers for `0x6xxx` UCD message codes) → RPMsg `/dev/rpmsg_insta360_scull` → RTOS**.
+* The RTOS owns the option availability (the `i_log`/`SI_LOG`/`LOG` enums live in the
+  BOOTSTRAP/RTOS image, not in any file).
+
+### 7.5 RTOS factory mode exists but is not a colour switch
+RTOS strings `set factory mode %d`, `Push] factory_mode %d invalid`, and Linux
+`/dev/rpmsg_insta360_scull_factory` / `InsApp_Status_FactoryMode_Set` show a manufacturing
+factory mode (IMU cal, ageing, uploads). It is not a documented way to unlock I-Log.
+
+### 7.6 Conclusion (updated)
+1. I-Log in Single Lens is **RTOS-firmware-gated**. No file/SD/JSON/config change can alter
+   it. Changing it requires modifying the RTOS image (**flashing — out of scope**).
+2. The **only** non-flash route is to inject the app's own UCD message (`0x6xxx`) that sets the
+   photography/colour option, via BLE or by writing the RPMsg channel. That is a substantial
+   RE task (framing + protobuf `PhotographyOptionType`) and the RTOS may still reject I-Log in
+   Single Lens.
+3. The I-Log ISP data for the sensor (`VideoCc*_IMX06C_LOG`) is present, so the pipeline is
+   capable; the block is purely control logic.
+
+### 7.7 Available safe levers right now
+* RAM-only root shell over Wi-Fi (`tools/cam_shell.py`).
+* Authorized HTTP access from the PC by holding port 6666 (`tools/probe_camera.ps1`).
+* `amba_camctrl` runtime ISP knobs: `img set_scene`, `set_de`, `set_sharpness`,
+  `set_colortemp`, `set_evbias` (RAM only) — can tune Single Lens look but not true I-Log.
+
+
 1. `adb devices` → `adb shell`.
 2. `md5sum` all live JSON paths; confirm the patched MD5 is what the daemon sees.
 3. `ls -l /proc/$(pidof instaAIP)/fd` and `/maps` for `camera_params` — did it ever open it?
