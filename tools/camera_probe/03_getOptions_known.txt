@@ -1,0 +1,2 @@
+﻿URL: POST http://192.168.42.1/osc/commands/execute
+ERROR: The remote server returned an error: (400) Bad Request.

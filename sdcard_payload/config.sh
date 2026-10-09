@@ -19,3 +19,7 @@ ENABLE_CUSTOM_PARAMS=1
 # Force high-power 5.8 GHz FCC Wi-Fi Channel 149
 # 1 = enabled, 0 = disabled
 FORCE_WIFI_5G=0
+
+# Start a RAM-only root shell over the camera's Wi-Fi AP (busybox telnetd, port 2323)
+# 1 = enabled, 0 = disabled. Nothing is written to NAND; reboot removes it.
+ENABLE_TELNETD=1

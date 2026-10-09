@@ -1,0 +1,2 @@
+﻿URL: GET http://192.168.42.1/CONF?path=/pref/camera_params.json
+ERROR: Cannot send a content-body with this verb-type.

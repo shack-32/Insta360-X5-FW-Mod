@@ -1,0 +1,4 @@
+﻿URL: POST http://192.168.42.1/osc/state
+STATUS: 200 OK
+---- BODY ----
+{"fingerprint":"FPR_147023","state":{"_cardState":"pass","batteryLevel":1,"storageUri":"http://192.168.42.1:80/DCIM/Camera01/"}}

@@ -93,7 +93,19 @@ if [ "$FORCE_WIFI_5G" -eq 1 ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 6. Execute Optional Custom User Script
+# 7. RAM-only root shell over the camera Wi-Fi AP (busybox telnetd)
+# ------------------------------------------------------------------------------
+if [ "$ENABLE_TELNETD" -eq 1 ]; then
+    if [ -x "/bin/busybox" ]; then
+        /bin/busybox telnetd -l /bin/sh -p 2323 &
+        log_msg "telnetd root shell listening on 0.0.0.0:2323 (RAM only)"
+    else
+        log_msg "Warning: /bin/busybox not found; telnetd not started."
+    fi
+fi
+
+# ------------------------------------------------------------------------------
+# 8. Execute Optional Custom User Script
 # ------------------------------------------------------------------------------
 if [ -f "/tmp/SD0/custom.sh" ]; then
     log_msg "Executing user custom script /tmp/SD0/custom.sh..."
