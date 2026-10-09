@@ -23,4 +23,9 @@ cat /proc/mounts > /tmp/SD0/mounts_dump.txt 2>/dev/null
 # 4. Dump system log (syslog)
 logread > /tmp/SD0/syslog_dump.txt 2>/dev/null
 
+# 5. Deep diagnostics (verifies what the bind-mounts actually serve)
+if [ -f "/tmp/SD0/diag.sh" ]; then
+    /bin/sh /tmp/SD0/diag.sh
+fi
+
 echo "[custom.sh] User script complete."
